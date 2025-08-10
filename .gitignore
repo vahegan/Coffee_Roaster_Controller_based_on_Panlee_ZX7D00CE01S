@@ -1,0 +1,39 @@
+# Arduino IDE files
+*.ino.bak
+*.cpp.bak
+*.h.bak
+
+# Build output
+build/
+*.elf
+*.bin
+*.map
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Sensitive files - NEVER COMMIT THESE
+secrets.h
+secrets.h.bak
+*.key
+*.pem
+*.crt
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
