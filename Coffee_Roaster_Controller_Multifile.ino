@@ -141,53 +141,64 @@ void loop() {
       }
     }
   }
-  if (millis() - last_data_time >= 1000) {  // Every second
+  // High-frequency temperature reading (every 200ms for responsiveness)
+  // This provides 5x faster temperature updates while maintaining 1-second CSV output
+  if (millis() - last_data_time >= TEMP_READING_INTERVAL) {
     float temp = max31850_read_temp(false); // Get smoothed temp for display and logging
-    struct tm timeinfo;
-    getLocalTime(&timeinfo);
-
-    gfx->flush();
-    gfx->setTextColor(YELLOW_RGB888);
-    gfx->setCursor(DISPLAY_DATE_X, DISPLAY_DATE_Y);
-    gfx->fillRect(DISPLAY_DATE_X, DISPLAY_DATE_Y, DISPLAY_DATE_WIDTH, DISPLAY_DATE_HEIGHT, BLACK_RGB888);
-    gfx->printf("%02d.%02d.%d %02d:%02d",timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900, timeinfo.tm_hour, timeinfo.tm_min);
+    last_data_time = millis();
+    
+    // Update display with current temperature (real-time)
     gfx->setTextColor(TEMP_DOT_COLOR);
     gfx->setTextSize(2);
     gfx->fillRect(TEXT_X+DISPLAY_TEMP_X_OFFSET, T_TEXT_Y, DISPLAY_TEMP_WIDTH, DISPLAY_TEMP_HEIGHT, BLACK_RGB888);
     gfx->setCursor(TEXT_X+DISPLAY_TEMP_X_OFFSET, T_TEXT_Y);
     gfx->printf("%.0fC", temp);
-
-    // Update graph
-    if (roast_active) { 
-      if (temp > -900) { // Valid reading
-        uint32_t current_time = (millis() - roast_start_time) / 1000;
-        if (data_count < MAX_DATA_POINTS) {
-          roast_data[data_count].timestamp = current_time;
-          roast_data[data_count].bean_temp = temp; // Store smoothed temp for ROR calculation
-          float ror = calculate_artisan_ror(data_count);
-          roast_data[data_count].ror = ror;
-          data_count++;
-          draw_roast_data();
-          if (charge_time > 0) draw_charge_line();
-          draw_crack_lines();
-          if (data_count > 1) {
-            float display_ror = roast_data[data_count-1].ror;
-            gfx->setTextColor(ROR_DOT_COLOR);
-            gfx->fillRect(TEXT_X+DISPLAY_ROR_X_OFFSET, ROR_TEXT_Y, DISPLAY_ROR_WIDTH, DISPLAY_ROR_HEIGHT, BLACK_RGB888);
-            gfx->setCursor(TEXT_X+DISPLAY_ROR_X_OFFSET, ROR_TEXT_Y);
-            gfx->printf("%.0f", display_ror);
+    
+    // Update graph and save data only every second (for CSV compatibility)
+    static uint32_t last_csv_time = 0;
+    if (millis() - last_csv_time >= CSV_OUTPUT_INTERVAL) {
+      last_csv_time = millis();
+      
+      // Update date/time display
+      struct tm timeinfo;
+      getLocalTime(&timeinfo);
+      gfx->flush();
+      gfx->setTextColor(YELLOW_RGB888);
+      gfx->setCursor(DISPLAY_DATE_X, DISPLAY_DATE_Y);
+      gfx->fillRect(DISPLAY_DATE_X, DISPLAY_DATE_Y, DISPLAY_DATE_WIDTH, DISPLAY_DATE_HEIGHT, BLACK_RGB888);
+      gfx->printf("%02d.%02d.%d %02d:%02d",timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900, timeinfo.tm_hour, timeinfo.tm_min);
+      
+      // Update graph and save data
+      if (roast_active) { 
+        if (temp > -900) { // Valid reading
+          uint32_t current_time = (millis() - roast_start_time) / 1000;
+          if (data_count < MAX_DATA_POINTS) {
+            roast_data[data_count].timestamp = current_time;
+            roast_data[data_count].bean_temp = temp; // Store smoothed temp for ROR calculation
+            float ror = calculate_artisan_ror(data_count);
+            roast_data[data_count].ror = ror;
+            data_count++;
+            draw_roast_data();
+            if (charge_time > 0) draw_charge_line();
+            draw_crack_lines();
+            if (data_count > 1) {
+              float display_ror = roast_data[data_count-1].ror;
+              gfx->setTextColor(ROR_DOT_COLOR);
+              gfx->fillRect(TEXT_X+DISPLAY_ROR_X_OFFSET, ROR_TEXT_Y, DISPLAY_ROR_WIDTH, DISPLAY_ROR_HEIGHT, BLACK_RGB888);
+              gfx->setCursor(TEXT_X+DISPLAY_ROR_X_OFFSET, ROR_TEXT_Y);
+              gfx->printf("%.0f", display_ror);
+            }
+            gfx->setTextColor(WHITE_RGB888);
+            gfx->fillRect(TEXT_X, TIME_TEXT_Y, DISPLAY_TIME_WIDTH, DISPLAY_TIME_HEIGHT, BLACK_RGB888);
+            gfx->setCursor(TEXT_X, TIME_TEXT_Y);
+            gfx->printf("%02d:%02d", current_time / 60, current_time % 60);
+            gfx->flush();
+            Serial.printf("[%lu] Time: %d:%02d, Temp: %.1fC, ROR: %.1fC/min\n", 
+                          millis(), current_time / 60, current_time % 60, temp, roast_data[data_count-1].ror);
           }
-          gfx->setTextColor(WHITE_RGB888);
-          gfx->fillRect(TEXT_X, TIME_TEXT_Y, DISPLAY_TIME_WIDTH, DISPLAY_TIME_HEIGHT, BLACK_RGB888);
-          gfx->setCursor(TEXT_X, TIME_TEXT_Y);
-          gfx->printf("%02d:%02d", current_time / 60, current_time % 60);
-          gfx->flush();
-          Serial.printf("[%lu] Time: %d:%02d, Temp: %.1fC, ROR: %.1fC/min\n", 
-                        millis(), current_time / 60, current_time % 60, temp, roast_data[data_count-1].ror);
         }
       }
     }
-      last_data_time = millis();
   }
-  delay(50);
+  delay(50); // Keep 50ms delay for touch responsiveness
 } 

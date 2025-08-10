@@ -149,8 +149,10 @@
 // Data arrays for graphing
 #define MAX_DATA_POINTS 900 // 15 minutes * 60 seconds
 
-// Temperature averaging
-#define TEMP_AVERAGE_SIZE 10 // Number of readings to average
+// Temperature reading and averaging
+#define TEMP_READING_INTERVAL 200    // 200ms = 5 readings/second
+#define TEMP_AVERAGE_SIZE 25         // 5 readings/sec × 5 seconds = 25 samples
+#define CSV_OUTPUT_INTERVAL 1000     // 1 second CSV output (maintains compatibility)
 
 // ROR averaging for display stability
 #define ROR_AVERAGE_SIZE 3 // Number of ROR values to average for display
