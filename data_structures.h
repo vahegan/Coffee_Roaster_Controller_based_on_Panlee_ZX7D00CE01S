@@ -26,6 +26,9 @@ struct RoastData {
 struct TouchButton {
   uint16_t x, y, width, height;
   char* text;
+  char* text2; // Second line of text (for multi-line buttons)
+  char* text3; // Third line of text (for three-line buttons)
+  bool visible; // Flag to control button visibility
   bool pressed;
   uint32_t last_press;
   bool was_pressed; // Track previous state for debouncing
@@ -34,6 +37,9 @@ struct TouchButton {
 // Roast stage enumeration
 enum RoastStage { IDLE, PREHEAT, CHARGE, ROASTING };
 
+// Crack stage enumeration for the multi-stage crack button
+enum CrackStage { CRACK_IDLE, FIRST_CRACK_START, FIRST_CRACK_END, SECOND_CRACK_START, SECOND_CRACK_END };
+
 // External declarations for global variables
 extern uint8_t touch_i2c_addr;
 extern TouchPoint last_touch;
@@ -41,7 +47,8 @@ extern bool roast_active;
 extern uint32_t roast_start_time;
 extern uint32_t last_data_time;
 extern uint8_t crack_count;
-extern uint32_t crack_times[2];
+extern uint32_t crack_times[4]; // Changed from 2 to 4 to support start/end for both cracks
+extern CrackStage current_crack_stage; // New variable to track current crack stage
 extern RoastStage roast_stage;
 extern uint32_t charge_time;
 extern RoastData roast_data[MAX_DATA_POINTS];

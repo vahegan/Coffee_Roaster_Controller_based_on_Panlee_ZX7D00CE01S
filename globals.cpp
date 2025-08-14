@@ -13,7 +13,8 @@ bool roast_active = false;
 uint32_t roast_start_time = 0;
 uint32_t last_data_time = 0;
 uint8_t crack_count = 0;
-uint32_t crack_times[2] = {0, 0};
+uint32_t crack_times[4] = {0, 0, 0, 0}; // Changed from 2 to 4 to support start/end for both cracks
+CrackStage current_crack_stage = CRACK_IDLE; // New variable to track current crack stage
 RoastStage roast_stage = IDLE;
 uint32_t charge_time = 0;
 RoastData roast_data[MAX_DATA_POINTS];
@@ -29,5 +30,5 @@ uint8_t ror_smooth_index = 0;
 bool ror_smooth_filled = false;
 
 // Touch buttons
-TouchButton start_button = {BUTTON_MARGIN_LEFT, START_BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT, (char*)"START", false, 0, false};
-TouchButton crack_button = {BUTTON_MARGIN_LEFT, CRACK_BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT, (char*)"CRACK", false, 0, false}; 
+TouchButton start_button = {BUTTON_MARGIN_LEFT, START_BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT, (char*)"START", NULL, NULL, true, false, 0, false};
+TouchButton crack_button = {BUTTON_MARGIN_LEFT, CRACK_BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT, (char*)"CRACK", NULL, NULL, false, false, 0, false}; 

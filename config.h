@@ -17,9 +17,7 @@
 #define TIME_ZONE 4
 #endif
 
-#ifndef TEMP_OFFSET
 #define TEMP_OFFSET 0 // Temperature calibration offset
-#endif
 
 #define DEBUG_MODE_TOUCH 0
 

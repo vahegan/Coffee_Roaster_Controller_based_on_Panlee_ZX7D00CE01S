@@ -87,12 +87,19 @@ void loop() {
         crack_count = 0;
         crack_times[0] = 0;
         crack_times[1] = 0;
+        crack_times[2] = 0;
+        crack_times[3] = 0;
+        current_crack_stage = CRACK_IDLE;
         reset_temp_averaging();
         charge_time = 0;
         start_button.text = (char*)"STOP";
         crack_button.text = (char*)"CHARGE";
+        crack_button.text2 = NULL;
+        crack_button.text3 = NULL;
+        crack_button.visible = true; // Make crack button visible
         roast_stage = PREHEAT;
         draw_initial_screen();
+        draw_button(&crack_button); // Make crack button visible with CHARGE text
         Serial.printf("[%lu] Roast started (preheat)\n", millis());
       } else {
         // Stop roast
@@ -100,8 +107,12 @@ void loop() {
         roast_stage = IDLE;
         start_button.text = (char*)"START";
         crack_button.text = (char*)"CRACK";
+        crack_button.text2 = NULL;
+        crack_button.text3 = NULL;
+        crack_button.visible = false; // Hide the crack button when roast stops
+        current_crack_stage = CRACK_IDLE;
         draw_button(&start_button);
-        draw_button(&crack_button);
+        clear_crack_button_area(); // Hide the crack button when roast stops
         draw_crack_lines();
         gfx->flush();
         saveRoastProfile();
@@ -117,27 +128,88 @@ void loop() {
         draw_charge_line();
         draw_crack_lines();
         gfx->flush();
-        crack_button.text = (char*)"CRACK";
+        crack_button.text = (char*)"1st";
+        crack_button.text2 = (char*)"Crack";
+        crack_button.text3 = (char*)"Start";
+        current_crack_stage = FIRST_CRACK_START;
         roast_stage = ROASTING;
+        
+        // Redraw the crack button with new text
         draw_button(&crack_button);
+        
         Serial.printf("[%lu] Charge pressed at %d seconds\n", millis(), charge_time);
-      } else if (roast_active && roast_stage == ROASTING && crack_count < 2) {
+      } else if (roast_active && roast_stage == ROASTING) {
+        // Handle multi-stage crack button
         uint32_t current_time = (millis() - roast_start_time) / 1000;
-        crack_times[crack_count] = current_time;
-        crack_count++;
-        Serial.printf("[%lu] Crack %d detected at %d seconds (crack_times[%d] = %d)\n", 
-                      millis(), crack_count, current_time, crack_count-1, crack_times[crack_count-1]);
+        
+        switch (current_crack_stage) {
+          case FIRST_CRACK_START:
+            // Record 1st crack start
+            crack_times[0] = current_time;
+            crack_count = 1;
+            current_crack_stage = FIRST_CRACK_END;
+            crack_button.text = (char*)"1st";
+            crack_button.text2 = (char*)"Crack";
+            crack_button.text3 = (char*)"End";
+            Serial.printf("[%lu] 1st crack start detected at %d seconds\n", millis(), current_time);
+            break;
+            
+          case FIRST_CRACK_END:
+            // Record 1st crack end
+            crack_times[1] = current_time;
+            crack_count = 2;
+            current_crack_stage = SECOND_CRACK_START;
+            crack_button.text = (char*)"2nd";
+            crack_button.text2 = (char*)"Crack";
+            crack_button.text3 = (char*)"Start";
+            Serial.printf("[%lu] 1st crack end detected at %d seconds\n", millis(), current_time);
+            break;
+            
+          case SECOND_CRACK_START:
+            // Record 2nd crack start
+            crack_times[2] = current_time;
+            crack_count = 3;
+            current_crack_stage = SECOND_CRACK_END;
+            crack_button.text = (char*)"2nd";
+            crack_button.text2 = (char*)"Crack";
+            crack_button.text3 = (char*)"End";
+            Serial.printf("[%lu] 2nd crack start detected at %d seconds\n", millis(), current_time);
+            break;
+            
+          case SECOND_CRACK_END:
+            // Record 2nd crack end
+            crack_times[3] = current_time;
+            crack_count = 4;
+            current_crack_stage = CRACK_IDLE;
+            // Hide the button by setting visible flag to false
+            crack_button.visible = false;
+            Serial.printf("[%lu] 2nd crack end detected at %d seconds\n", millis(), current_time);
+            break;
+            
+          default:
+            Serial.printf("[%lu] Crack button pressed but no valid stage\n", millis());
+            break;
+        }
+        
+        // Redraw everything after crack event
         draw_graph_axes();
         draw_roast_data();
         draw_charge_line();
         draw_crack_lines();
+        
+        // Draw crack button if it's visible, otherwise clear the area
+        if (crack_button.visible) {
+          draw_button(&crack_button);
+        } else {
+          clear_crack_button_area();
+        }
+        
         gfx->flush();
+        
       } else if (!roast_active) {
         Serial.printf("[%lu] Crack/Charge button pressed but roast not active\n", millis());
-      } else if (crack_count >= 2) {
-        Serial.printf("[%lu] Already detected 2 cracks (max reached)\n", millis());
       } else {
-        Serial.printf("[%lu] Crack/Charge button pressed but condition not met - roast_active: %d, crack_count: %d\n", millis(), roast_active, crack_count);
+        Serial.printf("[%lu] Crack/Charge button pressed but condition not met - roast_active: %d, stage: %d\n", millis(), roast_active, roast_stage);
       }
     }
   }
@@ -181,6 +253,14 @@ void loop() {
             draw_roast_data();
             if (charge_time > 0) draw_charge_line();
             draw_crack_lines();
+            
+            // Draw crack button if it's visible, otherwise clear the area
+            if (crack_button.visible) {
+              draw_button(&crack_button);
+            } else {
+              clear_crack_button_area();
+            }
+            
             if (data_count > 1) {
               float display_ror = roast_data[data_count-1].ror;
               gfx->setTextColor(ROR_DOT_COLOR);

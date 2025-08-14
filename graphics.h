@@ -10,6 +10,8 @@
 void setup_backlight();
 void draw_initial_screen();
 void draw_button(TouchButton* button);
+void draw_crack_button_if_visible(); // New function to conditionally draw crack button
+void clear_crack_button_area(); // New function to clear crack button area when hidden
 bool button_pressed(TouchButton* button, TouchPoint touch);
 void draw_graph_axes();
 void draw_roast_data();

@@ -117,7 +117,7 @@ void saveRoastProfile() {
   struct tm timeinfo;
   getLocalTime(&timeinfo);
   // Write Artisan CSV header (example, adjust as needed)
-  file.printf("Date:%02d.%02d.%d\tUnit:C\tCHARGE:%02d:%02d\tTP:\tDRYe:\tFCs:%02d:%02d\tFCe:\tSCs:\tSCe:\tDROP:%02d:%02d\tCOOL:\tTime:",timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900,charge_time/60,charge_time%60,crack_times[0]/60,crack_times[0]%60,roast_data[data_count-1].timestamp/60,roast_data[data_count-1].timestamp%60);
+  file.printf("Date:%02d.%02d.%d\tUnit:C\tCHARGE:%02d:%02d\tTP:\tDRYe:\tFCs:%02d:%02d\tFCe:%02d:%02d\tSCs:%02d:%02d\tSCe:%02d:%02d\tDROP:%02d:%02d\tCOOL:\tTime:",timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900,charge_time/60,charge_time%60,crack_times[0]/60,crack_times[0]%60,crack_times[1]/60,crack_times[1]%60,crack_times[2]/60,crack_times[2]%60,crack_times[3]/60,crack_times[3]%60,roast_data[data_count-1].timestamp/60,roast_data[data_count-1].timestamp%60);
   file.println("\nTime1\tTime2\tET\tBT\tEvent");
 
   // Helper to convert seconds to mm:ss
@@ -137,8 +137,10 @@ void saveRoastProfile() {
     float bt_c = roast_data[i].bean_temp; // Use same for ET/BT for now
     String event = "";
     if (charge_time > 0 && roast_data[i].timestamp == charge_time) event = "CHARGE";
-    if (crack_count > 0 && roast_data[i].timestamp == crack_times[0]) event = "1stCrack";
-    if (crack_count > 1 && roast_data[i].timestamp == crack_times[1]) event = "2ndCrack";
+    if (crack_count > 0 && roast_data[i].timestamp == crack_times[0]) event = "1stCrackStart";
+    if (crack_count > 1 && roast_data[i].timestamp == crack_times[1]) event = "1stCrackEnd";
+    if (crack_count > 2 && roast_data[i].timestamp == crack_times[2]) event = "2ndCrackStart";
+    if (crack_count > 3 && roast_data[i].timestamp == crack_times[3]) event = "2ndCrackEnd";
     if (roast_active == false && i == data_count-1) event = "DROP";
     file.printf("%s\t%s\t%.4f\t%.4f\t%s\n", t1, t2, 26.5, bt_c, event.c_str());
   }

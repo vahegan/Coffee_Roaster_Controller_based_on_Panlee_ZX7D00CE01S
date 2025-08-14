@@ -1,5 +1,6 @@
 #include "graphics.h"
 #include <Wire.h>
+#include <algorithm>
 
 // RGB panel configuration
 Arduino_ESP32RGBPanel *bus = new Arduino_ESP32RGBPanel(
@@ -127,9 +128,9 @@ void draw_initial_screen() {
   gfx->setTextSize(2);
       gfx->setCursor(GRAPH_X+GRAPH_TITLE_X_OFFSET, GRAPH_TITLE_Y);
   gfx->print("Coffee Roaster Controller");
-  // Draw buttons
+  // Draw buttons - only show start button initially, crack button appears after roast starts
   draw_button(&start_button);
-  draw_button(&crack_button);
+  // Note: crack_button is drawn separately when needed
   // Draw graph axes
   draw_graph_axes();
   // Legend
@@ -145,6 +146,18 @@ void draw_initial_screen() {
   gfx->flush();
 }
 
+void draw_crack_button_if_visible() {
+  // Only draw crack button if roast is active AND button is marked as visible
+  if (roast_active && crack_button.visible) {
+    draw_button(&crack_button);
+  }
+}
+
+void clear_crack_button_area() {
+  // Clear the area where the crack button would be to hide it
+  gfx->fillRect(crack_button.x, crack_button.y, crack_button.width, crack_button.height, BLACK_RGB888);
+}
+
 void draw_button(TouchButton* button) {
   uint16_t color = button->pressed ? YELLOW_RGB888 : WHITE_RGB888;
   gfx->fillRoundRect(button->x, button->y, button->width, button->height, 10, color);
@@ -155,13 +168,61 @@ void draw_button(TouchButton* button) {
   int text_size = 2;
   int char_width = 6 * text_size;
   int char_height = 8 * text_size;
-  int text_len = strlen(button->text);
-  int text_width = char_width * text_len;
-  int text_height = char_height;
-  int text_x = button->x + (button->width - text_width) / 2;
-  int text_y = button->y + (button->height - text_height) / 2;
-  gfx->setCursor(text_x, text_y);
-  gfx->print(button->text);
+  
+  // Check if we have three-line text
+  if (button->text2 != NULL && button->text3 != NULL) {
+    // Three-line text - calculate positioning for all three lines
+    int line1_len = strlen(button->text);
+    int line2_len = strlen(button->text2);
+    int line3_len = strlen(button->text3);
+    int max_line_len = max(max(line1_len, line2_len), line3_len);
+    int text_width = char_width * max_line_len;
+    int total_text_height = char_height * 3;
+    
+    // Center the entire text block in the button
+    int text_x = button->x + (button->width - text_width) / 2;
+    int text_y = button->y + (button->height - total_text_height) / 2;
+    
+    // Draw first line
+    gfx->setCursor(text_x, text_y);
+    gfx->print(button->text);
+    
+    // Draw second line
+    gfx->setCursor(text_x, text_y + char_height);
+    gfx->print(button->text2);
+    
+    // Draw third line
+    gfx->setCursor(text_x, text_y + char_height * 2);
+    gfx->print(button->text3);
+  } else if (button->text2 != NULL) {
+    // Two-line text - calculate positioning for both lines
+    int line1_len = strlen(button->text);
+    int line2_len = strlen(button->text2);
+    int max_line_len = max(line1_len, line2_len);
+    int text_width = char_width * max_line_len;
+    int total_text_height = char_height * 2;
+    
+    // Center the entire text block in the button
+    int text_x = button->x + (button->width - text_width) / 2;
+    int text_y = button->y + (button->height - total_text_height) / 2;
+    
+    // Draw first line
+    gfx->setCursor(text_x, text_y);
+    gfx->print(button->text);
+    
+    // Draw second line below the first
+    gfx->setCursor(text_x, text_y + char_height);
+    gfx->print(button->text2);
+  } else {
+    // Single-line text (original behavior)
+    int text_len = strlen(button->text);
+    int text_width = char_width * text_len;
+    int text_height = char_height;
+    int text_x = button->x + (button->width - text_width) / 2;
+    int text_y = button->y + (button->height - text_height) / 2;
+    gfx->setCursor(text_x, text_y);
+    gfx->print(button->text);
+  }
 }
 
 bool button_pressed(TouchButton* button, TouchPoint touch) {
@@ -263,15 +324,30 @@ void draw_graph_axes() {
     gfx->print(i * 20);
   }
   // Draw ROR axis (vertical) with marks and numbers
-  int nTicksROR = (ROR_GRAPH_MAX - ROR_GRAPH_MIN) / 10; // 10°C/min spacing
+  // ROR axis should be symmetric around zero, centered in the middle of the graph
+  int ror_range = ROR_GRAPH_MAX; // Use positive range since we're symmetric around zero
+  int nTicksROR = (ror_range * 2) / 10; // 10°C/min spacing, covering -ror_range to +ror_range
+  
   for (int i = 0; i <= nTicksROR; i++) {
     int y = GRAPH_Y + GRAPH_HEIGHT - (i * GRAPH_HEIGHT / nTicksROR);
     gfx->drawLine(GRAPH_X+GRAPH_WIDTH-10, y, GRAPH_X+GRAPH_WIDTH, y, ROR_DOT_COLOR);
     gfx->setTextColor(ROR_DOT_COLOR);
     gfx->setTextSize(2);
     gfx->setCursor(GRAPH_X+GRAPH_WIDTH-ROR_AXIS_TEXT_X_OFFSET, y - ROR_AXIS_TEXT_Y_OFFSET);
-    gfx->print(ROR_GRAPH_MIN + (i * 10));
+    
+    // Calculate ROR value: start from -ror_range, go to +ror_range
+    int ror_value = -ror_range + (i * 10);
+    gfx->print(ror_value);
   }
+  
+  // Draw a prominent zero line
+  int zero_y = GRAPH_Y + (GRAPH_HEIGHT / 2);
+  gfx->setTextColor(WHITE_RGB888);
+  gfx->setTextSize(2);
+  gfx->setCursor(GRAPH_X+GRAPH_WIDTH-ROR_AXIS_TEXT_X_OFFSET, zero_y - ROR_AXIS_TEXT_Y_OFFSET);
+  gfx->print("0");
+  // Draw a longer line for zero
+  gfx->drawLine(GRAPH_X+GRAPH_WIDTH-15, zero_y, GRAPH_X+GRAPH_WIDTH, zero_y, WHITE_RGB888);
 }
 
 void draw_roast_data() {
@@ -290,13 +366,14 @@ void draw_roast_data() {
   // Draw ROR dots (red, symmetric around zero)
   for (int i = 0; i < data_count; i++) {
     float ror_val = roast_data[i].ror;
-    // Clip ROR to graph range
-    if (ror_val < ROR_GRAPH_MIN) ror_val = ROR_GRAPH_MIN;
-    if (ror_val > ROR_GRAPH_MAX) ror_val = ROR_GRAPH_MAX;
+    // Clip ROR to symmetric graph range around zero
+    int ror_range = ROR_GRAPH_MAX; // Use positive range since we're symmetric around zero
+    if (ror_val < -ror_range) ror_val = -ror_range;
+    if (ror_val > ror_range) ror_val = ror_range;
   
     int x = GRAPH_X + (roast_data[i].timestamp * GRAPH_WIDTH / GRAPH_TIME_MAX);
     // Center zero line in middle of graph
-    int y = GRAPH_Y + (GRAPH_HEIGHT / 2) - (int)((ror_val * (float)GRAPH_HEIGHT) / (2.0 * (float)ROR_GRAPH_MAX));
+    int y = GRAPH_Y + (GRAPH_HEIGHT / 2) - (int)((ror_val * (float)GRAPH_HEIGHT) / (2.0 * (float)ror_range));
   
     if (x >= GRAPH_X && x <= GRAPH_X + GRAPH_WIDTH && y >= GRAPH_Y && y <= GRAPH_Y + GRAPH_HEIGHT) {
       gfx->fillCircle(x, y, ROR_DOT_SIZE, ROR_DOT_COLOR);
@@ -358,13 +435,27 @@ void draw_crack_lines() {
       char time_str[10];
       sprintf(time_str, "%d:%02d", minutes, seconds);
       char combined_text[40];
-      if (i == 0) {
-        sprintf(combined_text, "1stCrack%s %.0fC", time_str, crack_temp);
-        draw_vertical_text(x + CRACK_LABEL_X_OFFSET, Y_MARK_20 - (strlen(combined_text) * FONT_CHAR_SPACING), combined_text, GREEN_RGB888);
-      } else {
-        sprintf(combined_text, "2ndCrack%s %.0fC", time_str, crack_temp);
-        draw_vertical_text(x + CRACK_LABEL_X_OFFSET, Y_MARK_20 - (strlen(combined_text) * FONT_CHAR_SPACING), combined_text, GREEN_RGB888);
+      
+      // Different labels for each crack event
+      switch (i) {
+        case 0: // 1st crack start
+          sprintf(combined_text, "1stCrackStart%s %.0fC", time_str, crack_temp);
+          break;
+        case 1: // 1st crack end
+          sprintf(combined_text, "1stCrackEnd%s %.0fC", time_str, crack_temp);
+          break;
+        case 2: // 2nd crack start
+          sprintf(combined_text, "2ndCrackStart%s %.0fC", time_str, crack_temp);
+          break;
+        case 3: // 2nd crack end
+          sprintf(combined_text, "2ndCrackEnd%s %.0fC", time_str, crack_temp);
+          break;
+        default:
+          sprintf(combined_text, "Crack%d%s %.0fC", i+1, time_str, crack_temp);
+          break;
       }
+      
+      draw_vertical_text(x + CRACK_LABEL_X_OFFSET, Y_MARK_20 - (strlen(combined_text) * FONT_CHAR_SPACING), combined_text, GREEN_RGB888);
     }
   }
 }
