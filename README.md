@@ -2,8 +2,6 @@
 
 This Coffee Roaster Controller project is based on Panlee ZX7D00CE01S 7-inch display module with ESP32S3 processor onboard. It logs the coffee bean temperature measured by K-type thermocouple during roasting, captures the data using MAX31850 and displays the temperature and ROR graphs on the screen. Time and temperature values are stored in the internal flash memory and a .csv file in Artisan format can be downloaded by connecting to the built-in web server of the roaster.
 
-Roaster video: 
-
 ## Project Photos
 
 ### Hardware Setup
@@ -13,7 +11,7 @@ Roaster video:
 ![Display Interface](images/display_interface.jpg)
 
 ### Roasting in Progress
-![Roasting in Progress](https://youtu.be/a6N3_clXMxE)
+[Watch Roasting Demo Video](https://youtu.be/a6N3_clXMxE)
 
 
 ## File Structure
